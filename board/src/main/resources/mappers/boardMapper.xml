@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper  PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.spring.board.boardMapper">
+
+<!-- 게시판 테이블의 목록수를 조회한다 -->
+
+	<select id="getBoardCnt" parameterType="com.spring.board.form.BoardForm" resultType="int">
+	
+		SELECT COUNT(*)
+		FROM TB_BOARD
+	
+	</select>
+	
+<!-- 게시글 번호를 기준으로 오름차순으로 페이징 처리를 하며 목록을 조회한다 -->	
+	<select id="getBoardList" parameterType="com.spring.board.form.BoardForm" resultType="com.spring.board.dto.BoardDto">
+	
+		SELECT *
+		FROM ( 
+				SELECT B_NUM 
+					 , B_WRITER 
+					 , B_TITLE 
+					 , B_CONTENT 
+					 , B_COUNT
+					 , DEL_YN 
+					 , B_ID
+					 , CAST( DATE_FORMAT( B_DATE, '%Y-%m-%d ' ) AS CHAR(19) ) AS B_DATE
+					 , B_UID
+					 , CAST( DATE_FORMAT( B_UDATE, '%Y-%m-%d' ) AS CHAR(19) ) AS B_UDATE  
+			   FROM TB_BOARD
+		       ORDER BY B_NUM ASC
+			  ) T1
+		LIMIT #{limit} OFFSET #{offset}
+	
+	</select>
+	
+<!-- 게시글을 볼때마다 조회수가 올라갈 수 있도록 정의한다. -->		
+	<delete id="updateBoardHits" parameterType="com.spring.board.form.BoardForm">
+	
+		UPDATE TB_BOARD 
+		   SET B_COUNT = B_COUNT + 1		     
+		     , B_UID = 'NONMEMBER'
+		     , B_UDATE = NOW()
+ 		WHERE B_NUM = #{b_num}
+	
+	</delete>
+	
+<!-- 페이징 처리를 하며 게시글 상세 조회합니다 -->		
+	<select id="getBoardDetail" parameterType="com.spring.board.form.BoardForm" resultType="com.spring.board.dto.BoardDto">
+	
+		SELECT T1.*
+		FROM (
+				SELECT B_NUM 
+					 , B_WRITER 
+					 , B_TITLE 
+					 , B_CONTENT 
+					 , B_COUNT
+					 , DEL_YN 
+					 , B_ID
+					 , CAST( DATE_FORMAT( B_DATE, '%Y-%m-%d ' ) AS CHAR(19) ) AS B_DATE
+					 , B_UID
+					 , CAST( DATE_FORMAT( B_UDATE, '%Y-%m-%d ' ) AS CHAR(19) ) AS B_UDATE  
+				FROM TB_BOARD
+				WHERE B_NUM = #{b_num}		
+		      ) T1		
+	
+	</select>
+		
+	<select id="getBoardFileList" parameterType="com.spring.board.form.BoardFileForm" resultType="com.spring.board.dto.BoardFileDto">
+	
+		SELECT T1.*
+		FROM (
+				SELECT B_NUM
+					 , FILE_NO
+					 , FILE_NAME_KEY
+					 , FILE_NAME
+					 , FILE_PATH
+					 , FILE_SIZE
+					 , REMARK
+			     	, B_ID
+					, CAST( DATE_FORMAT( B_DATE, '%Y-%m-%d ' ) AS CHAR(19) ) AS B_DATE
+					, B_UID
+					, CAST( DATE_FORMAT( B_UDATE, '%Y-%m-%d ' ) AS CHAR(19) ) AS B_UDATE
+				FROM TB_BOARD_FILE
+				WHERE B_NUM = #{b_num}
+				AND DEL_YN = 'N'
+		      ) T1		
+			
+	</select>
+	
+	
+<!-- 게시글을 작성합니다 -->		
+	<insert id="insertBoard" parameterType="com.spring.board.form.BoardForm">
+		
+		<selectKey resultType="int" keyProperty="b_num" order="AFTER">
+
+			SELECT LAST_INSERT_ID()
+
+		</selectKey>
+		
+		INSERT 
+		INTO TB_BOARD 
+		(
+		  	 B_WRITER
+		  	, B_TITLE
+		  	, B_CONTENT
+		  	, B_ID
+		  	, B_DATE
+		  	, B_UID
+		  	, B_UDATE
+		) 
+		VALUES 
+		(
+	
+			 'NONMEMBER'
+			, #{b_title}
+			, #{b_content}
+			, 'NONMEMBER'
+			, NOW() 
+			, 'NONMEMBER'
+			, NOW() 
+		)
+			
+	</insert>
+
+<!--  게시글 작성시 파일도 첨부합니다 -->	
+	<insert id="insertBoardFile" parameterType="com.spring.board.form.BoardFileForm">
+	
+		<selectKey resultType="int" keyProperty="file_no" order="BEFORE">
+			
+			SELECT IFNULL(MAX(FILE_NO), 0) + 1 
+			FROM TB_BOARD_FILE
+			WHERE B_NUM = #{b_num}
+			  
+		</selectKey>
+				
+		INSERT 
+		INTO TB_BOARD_FILE
+		(
+			  B_NUM
+			, FILE_NO
+			, FILE_NAME_KEY
+			, FILE_NAME
+			, FILE_PATH
+			, FILE_SIZE
+			, DEL_YN 
+			, B_ID
+			, B_DATE			
+			, B_UID
+			, B_UDATE
+		)
+		VALUES
+		(
+			  #{b_num}
+			, #{file_no}
+			, #{file_name_key}
+			, #{file_name}
+			, #{file_path}
+			, #{file_size}
+			, 'N'
+			, 'NONMEMBER'
+			, NOW() 
+			, 'NONMEMBER'
+			, NOW() 
+		)	
+		
+	</insert>
+	
+	<insert id="insertBoardFail" parameterType="com.spring.board.form.BoardForm">
+	
+		INSERT 
+		INTO TB_BOARD 
+		(
+		  	 b_writer
+		  	, B_TITLE
+		  	, B_CONTENT
+		  	, B_ID
+		  	, B_DATE
+		  	, B_UID
+		  	, B_UDATE
+		) 
+		VALUES 
+		(
+
+			#{b_writer}
+			, #{b_title}
+			, #{b_content}
+			, 'NONMEMBER'
+			, NOW() 
+			, 'NONMEMBER'
+			, NOW() 
+		)
+	
+	</insert>
+		
+	<delete id="deleteBoard" parameterType="com.spring.board.form.BoardForm">
+	
+		DELETE 
+		FROM TB_BOARD 
+		WHERE B_NUM = #{b_num}
+	
+	</delete>
+	
+	<delete id="updateBoard" parameterType="com.spring.board.form.BoardForm">
+	
+		UPDATE TB_BOARD 
+		   SET B_TITLE = #{b_title}
+		     , B_CONTENT = #{b_content}
+		     , B_UID = 'NONMEMBER'
+		     , B_UDATE = NOW()
+ 		WHERE B_NUM = #{b_num}
+	
+	</delete>
+	
+	
+	<delete id="deleteBoardFile" parameterType="com.spring.board.form.BoardFileForm">
+	
+		UPDATE TB_BOARD_FILE 
+		   SET DEL_YN = 'Y'
+		     , B_UID = 'NONMEMBER'
+		     , B_UDATE = NOW()
+ 		WHERE B_NUM = #{b_num}
+ 		  AND FILE_NO = #{file_no}
+	
+	</delete>
+	
+</mapper>
