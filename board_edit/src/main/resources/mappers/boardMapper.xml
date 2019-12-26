@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper  PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.spring.board.boardMapper">
+
+	<select id="getBoardCnt"
+		parameterType="com.spring.board.form.BoardForm" resultType="int">
+	<!--   게시글 수를 카운트 합니다  *path: src/main/resources/mappers/boardMapper.xml  *id: getBoardCnt   -->
+
+		SELECT
+		COUNT(*)
+		FROM TB_BOARD
+
+	</select>
+
+	<select id="getBoardList"
+		parameterType="com.spring.board.form.BoardForm"
+		resultType="com.spring.board.dto.BoardDto">
+	<!--   게시글 목록을 조회합니다  *path: src/main/resources/mappers/boardMapper.xml  *id: getBoardList   -->
+	
+		SELECT *
+		FROM ( 
+				SELECT BOARD_SEQ 
+					 , BOARD_WRITER 
+					 , BOARD_SUBJECT 
+					 , BOARD_CONTENT 
+					 , BOARD_HITS
+					 , DEL_YN 
+					 , INS_USER_ID
+					 , CAST( DATE_FORMAT( INS_DATE, '%Y.%m.%d' ) AS CHAR(19) ) AS INS_DATE
+					 , UPD_USER_ID
+					 , CAST( DATE_FORMAT( UPD_DATE, '%Y.%m.%d' ) AS CHAR(19) ) AS UPD_DATE  
+			   FROM TB_BOARD
+		       ORDER BY BOARD_SEQ ASC
+			  ) T1
+		LIMIT #{limit} OFFSET #{offset}
+
+	</select>
+
+	<update id="updateBoardHits"
+		parameterType="com.spring.board.form.BoardForm">
+	<!--   게시글 조회수를 업데이트 합니다  *path: src/main/resources/mappers/boardMapper.xml  *id: updateBoardHits   -->
+
+		UPDATE TB_BOARD
+		SET BOARD_HITS = BOARD_HITS + 1,
+		UPD_USER_ID = 'NONMEMBER',
+		UPD_DATE = NOW()
+		WHERE BOARD_SEQ
+		=#{board_seq}
+
+	</update>
+
+	<select id="getBoardDetail"
+		parameterType="com.spring.board.form.BoardForm"
+		resultType="com.spring.board.dto.BoardDto">
+	<!--   작성 내용을 상세 조회합니다   *path: src/main/resources/mappers/boardMapper.xml  *id: getBoardDetail   -->
+	
+		SELECT T1.*
+		FROM (
+				SELECT BOARD_SEQ 
+					 , BOARD_WRITER 
+					 , BOARD_SUBJECT 
+					 , BOARD_CONTENT 
+					 , BOARD_HITS
+					 , DEL_YN 
+					 , INS_USER_ID
+					 , CAST( DATE_FORMAT( INS_DATE, '%Y.%m.%d %H:%s' ) AS CHAR(19) ) AS INS_DATE
+					 , UPD_USER_ID
+					 , CAST( DATE_FORMAT( UPD_DATE, '%Y.%m.%d %H:%s' ) AS CHAR(19) ) AS UPD_DATE  
+				FROM TB_BOARD
+				WHERE BOARD_SEQ = #{board_seq}		
+		      ) T1		
+	</select>
+
+	<select id="getBoardFileList"
+		parameterType="com.spring.board.form.BoardFileForm"
+		resultType="com.spring.board.dto.BoardFileDto">
+	<!--   파일 목록을 조회합니다   *path: src/main/resources/mappers/boardMapper.xml  *id: getBoardFileList   -->	
+		
+		SELECT T1.*
+		FROM (
+				SELECT BOARD_SEQ
+					 , FILE_NO
+					 , FILE_NAME_KEY
+					 , FILE_NAME
+					 , FILE_PATH
+					 , FILE_SIZE
+					 , REMARK
+			     	, INS_USER_ID
+					, CAST( DATE_FORMAT( INS_DATE, '%Y-%m-%d %H:%i:%s' ) AS CHAR(19) ) AS INS_DATE
+					, UPD_USER_ID
+					, CAST( DATE_FORMAT( UPD_DATE, '%Y-%m-%d %H:%i:%s' ) AS CHAR(19) ) AS UPD_DATE
+				FROM TB_BOARD_FILE
+				WHERE BOARD_SEQ = #{board_seq}
+				AND DEL_YN = 'N'
+		      ) T1				
+
+	</select>
+
+
+
+	<insert id="insertBoard"
+		parameterType="com.spring.board.form.BoardForm">
+	<!--   게시글을 작성합니다  *path: src/main/resources/mappers/boardMapper.xml  *id: insertBoard   -->	
+
+		<selectKey resultType="int" keyProperty="board_seq"
+			order="AFTER">
+
+			SELECT LAST_INSERT_ID()
+
+		</selectKey>
+
+		INSERT
+		INTO TB_BOARD
+		(
+
+		BOARD_WRITER
+		, BOARD_SUBJECT
+		, BOARD_CONTENT
+		,
+		INS_USER_ID
+		, INS_DATE
+		, UPD_USER_ID
+		, UPD_DATE
+		)
+		VALUES
+		(
+		#{board_writer}
+		,
+		#{board_subject}
+		, #{board_content}
+		, 'NONMEMBER'
+		, NOW()
+		, 'NONMEMBER'
+		,
+		NOW()
+		)
+
+	</insert>
+
+	<insert id="insertBoardFile"
+		parameterType="com.spring.board.form.BoardFileForm">
+	<!--   파일을 첨부합니다  *path: src/main/resources/mappers/boardMapper.xml  *id: insertBoardFile   -->
+
+		<selectKey resultType="int" keyProperty="file_no"
+			order="BEFORE">
+
+			SELECT IFNULL(MAX(FILE_NO), 0) + 1
+			FROM TB_BOARD_FILE
+			WHERE
+			BOARD_SEQ = #{board_seq}
+
+		</selectKey>
+
+		INSERT
+		INTO TB_BOARD_FILE
+		(
+		BOARD_SEQ
+		, FILE_NO
+		, FILE_NAME_KEY
+		, FILE_NAME
+		, FILE_PATH
+		, FILE_SIZE
+		, DEL_YN
+		, INS_USER_ID
+		, INS_DATE
+		, UPD_USER_ID
+		,
+		UPD_DATE
+		)
+		VALUES
+		(
+		#{board_seq}
+		, #{file_no}
+		, #{file_name_key}
+		, #{file_name}
+		, #{file_path}
+		, #{file_size}
+		, 'N'
+		, 'NONMEMBER'
+		, NOW()
+		, 'NONMEMBER'
+		, NOW()
+		)
+
+	</insert>
+
+	<insert id="insertBoardFail"
+		parameterType="com.spring.board.form.BoardForm">
+
+		INSERT
+		INTO TB_BOARD
+		(
+
+		BOARD_WRITER
+		, BOARD_SUBJECT
+		,BOARD_CONTENT
+		, INS_USER_ID
+		, INS_DATE
+		, UPD_USER_ID
+		, UPD_DATE
+		)
+		VALUES
+		(
+
+		#{board_writer}
+		, #{board_subject}
+		, #{board_content}
+		, 'NONMEMBER'
+		,
+		NOW()
+		, 'NONMEMBER'
+		, NOW()
+		)
+
+	</insert>
+
+	<delete id="deleteBoard"
+		parameterType="com.spring.board.form.BoardForm">
+	<!--   게시글을 삭제합니다  *path: src/main/resources/mappers/boardMapper.xml  *id: deleteBoard   -->
+
+		DELETE
+		FROM TB_BOARD
+		WHERE BOARD_SEQ = #{board_seq}
+
+	</delete>
+
+	<update id="updateBoard"
+		parameterType="com.spring.board.form.BoardForm">
+	<!--   게시글을 수정합니다  *path: src/main/resources/mappers/boardMapper.xml *id: updateBoard   -->	
+
+		UPDATE TB_BOARD
+		SET BOARD_SUBJECT = #{board_subject}
+		,
+		BOARD_CONTENT = #{board_content}
+		, UPD_USER_ID = 'NONMEMBER'
+		, UPD_DATE
+		= NOW()
+		WHERE BOARD_SEQ = #{board_seq}
+
+	</update>
+
+
+
+	<update id="deleteBoardFile"
+		parameterType="com.spring.board.form.BoardFileForm">
+	<!--   첨부한 파일을 삭제할 수 있습니다  *path: src/main/resources/mappers/boardMapper.xml *id: deleteBoardFile   -->	
+
+		UPDATE TB_BOARD_FILE
+		SET DEL_YN = 'Y'
+		, UPD_USER_ID =
+		'NONMEMBER'
+		, UPD_DATE = NOW()
+		WHERE BOARD_SEQ = #{board_seq}
+		AND FILE_NO
+		= #{file_no}
+
+	</update>
+
+</mapper>
